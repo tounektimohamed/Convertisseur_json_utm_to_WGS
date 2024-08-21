@@ -10,6 +10,8 @@ CORS(app)  # Permet les requêtes CORS
 
 # Fonction pour convertir les coordonnées de UTM à WGS84 avec un code EPSG spécifique
 def convert_utm_to_wgs84(geometry, epsg_code):
+
+    
     try:
         # Utiliser le code EPSG pour UTM
         proj_utm = pyproj.Proj(f"epsg:{epsg_code}")
