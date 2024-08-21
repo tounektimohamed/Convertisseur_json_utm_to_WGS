@@ -1,10 +1,12 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import pyproj
 import json
 from shapely.geometry import shape, mapping
 from shapely.ops import transform
 
 app = Flask(__name__)
+CORS(app)  # Permet les requêtes CORS
 
 # Fonction pour convertir les coordonnées de UTM à WGS84
 def convert_utm_to_wgs84(geometry, utm_zone):
@@ -15,6 +17,7 @@ def convert_utm_to_wgs84(geometry, utm_zone):
 
     project = lambda x, y: transformer.transform(x, y)
     return transform(project, shape(geometry))
+
 @app.route('/convert', methods=['POST'])
 def convert():
     data = request.get_json()
@@ -39,5 +42,6 @@ def convert():
     print(json.dumps(result, indent=2))
 
     return jsonify(result)
+
 if __name__ == '__main__':
     app.run(debug=True)
