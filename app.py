@@ -9,9 +9,8 @@ app = Flask(__name__)
 CORS(app)  # Permet les requêtes CORS
 
 # Fonction pour convertir les coordonnées de UTM à WGS84 avec un code EPSG spécifique
-def convert_utm_to_wgs84(geometry, epsg_code):
 
-    
+def convert_utm_to_wgs84(geometry, epsg_code):
     try:
         # Utiliser le code EPSG pour UTM
         proj_utm = pyproj.Proj(f"epsg:{epsg_code}")
@@ -20,7 +19,13 @@ def convert_utm_to_wgs84(geometry, epsg_code):
         transformer = pyproj.Transformer.from_proj(proj_utm, proj_wgs84, always_xy=True)
 
         project = lambda x, y: transformer.transform(x, y)
-        return transform(project, shape(geometry))
+        transformed_geom = transform(project, shape(geometry))
+        
+        # Débogage : imprime les coordonnées avant et après transformation
+        print("Avant transformation:", shape(geometry))
+        print("Après transformation:", transformed_geom)
+
+        return transformed_geom
     except Exception as e:
         raise Exception(f"Erreur de conversion UTM à WGS84: {e}")
 
