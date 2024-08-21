@@ -13,21 +13,20 @@
 
     <label for="geojson">GeoJSON:</label><br>
     <textarea id="geojson" name="geojson" rows="10" cols="50" required>
+{
+    "type": "FeatureCollection",
+    "features": [
         {
-            "type": "FeatureCollection",
-            "features": [
-                {
-                    "type": "Feature",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [500000, 4649776.22482]
-                    },
-                    "properties": {}
-                }
-            ]
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [500000, 4649776.22482]
+            },
+            "properties": {}
         }
-        </textarea>
-        
+    ]
+}
+    </textarea><br><br>
 
     <button type="button" onclick="testAPI()">Test API</button>
 </form>
@@ -52,6 +51,11 @@ async function testAPI() {
                 "geojson": JSON.parse(geojson)
             })
         });
+
+        if (!response.ok) {
+            const errorText = await response.text(); // Read response text
+            throw new Error(`Network response was not ok: ${response.statusText}. ${errorText}`);
+        }
 
         const data = await response.json();
         document.getElementById('response').textContent = JSON.stringify(data, null, 2);
