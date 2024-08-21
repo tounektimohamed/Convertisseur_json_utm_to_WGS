@@ -2,3 +2,4 @@ Flask==2.3.2
 pyproj==3.6.1
 shapely==2.0.1
 numpy<2
+gunicorn==20.1.0
