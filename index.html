@@ -13,20 +13,21 @@
 
     <label for="geojson">GeoJSON:</label><br>
     <textarea id="geojson" name="geojson" rows="10" cols="50" required>
-{
-    "type": "FeatureCollection",
-    "features": [
         {
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [500000, 4649776.22482]
-            },
-            "properties": {}
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [500000, 4649776.22482]
+                    },
+                    "properties": {}
+                }
+            ]
         }
-    ]
-}
-    </textarea><br><br>
+        </textarea>
+        
 
     <button type="button" onclick="testAPI()">Test API</button>
 </form>
