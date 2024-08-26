@@ -1,70 +1,56 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import pyproj
-import json
 from shapely.geometry import shape, mapping
 from shapely.ops import transform
-
-app = Flask(__name__)
-CORS(app)  # Permet les requêtes CORS
-
-# Fonction pour convertir les coordonnées de UTM à WGS84 avec un code EPSG spécifique
+import pyproj
 
 def convert_utm_to_wgs84(geometry, epsg_code):
     try:
-        # Utiliser le code EPSG pour UTM
+        # Définir les systèmes de projection
         proj_utm = pyproj.Proj(f"epsg:{epsg_code}")
         proj_wgs84 = pyproj.Proj(proj="latlong", datum="WGS84")
 
+        # Créer un transformateur entre UTM et WGS84
         transformer = pyproj.Transformer.from_proj(proj_utm, proj_wgs84, always_xy=True)
 
-        project = lambda x, y: transformer.transform(x, y)
-        transformed_geom = transform(project, shape(geometry))
+        # Fonction pour transformer les coordonnées en ignorant Z si présent
+        def project(x, y, z=None):
+            return transformer.transform(x, y)
+
+        # Transformer la géométrie
+        transformed_geom = transform(lambda x, y, z=None: project(x, y, z), shape(geometry))
         
-        # Débogage : imprime les coordonnées avant et après transformation
-        print("Avant transformation:", shape(geometry))
-        print("Après transformation:", transformed_geom)
+        # Afficher les géométries avant et après transformation
+        print("Avant transformation:", mapping(geometry))
+        print("Après transformation:", mapping(transformed_geom))
 
         return transformed_geom
+    
     except Exception as e:
         raise Exception(f"Erreur de conversion UTM à WGS84: {e}")
 
-@app.route('/convert', methods=['POST'])
-def convert():
-    try:
-        data = request.get_json()
-        epsg_code = data.get('epsg_code')
-        geojson = data.get('geojson')
+# Exemple d'utilisation pour géométries 2D et 3D
+geometry_example_2d = {
+    "type": "LineString",
+    "coordinates": [
+        [630349.2017514162, 3576258.533900627],
+        [630348.8256283968, 3576258.1334881177]
+    ]
+}
 
-        if not epsg_code or not geojson:
-            return jsonify({"error": "Données manquantes: epsg_code et geojson sont requis."}), 400
+geometry_example_3d = {
+    "type": "LineString",
+    "coordinates": [
+        [630867.9692095905, 3575942.284303735, 0],
+        [630937.898215378, 3576008.15828909, 0]
+    ]
+}
 
-        if not isinstance(epsg_code, int):
-            return jsonify({"error": "epsg_code doit être un entier."}), 400
+# Code EPSG pour UTM Zone 32N (exemple)
+epsg_code = 32632
 
-        features = []
-        for feature in geojson.get('features', []):
-            try:
-                geom = convert_utm_to_wgs84(feature['geometry'], epsg_code)
-                features.append({
-                    'type': 'Feature',
-                    'geometry': mapping(geom),
-                    'properties': feature['properties']
-                })
-            except Exception as e:
-                return jsonify({"error": f"Erreur lors de la conversion de la fonctionnalité: {e}"}), 400
+# Conversion des géométries
+result_2d = convert_utm_to_wgs84(geometry_example_2d, epsg_code)
+result_3d = convert_utm_to_wgs84(geometry_example_3d, epsg_code)
 
-        result = {
-            'type': 'FeatureCollection',
-            'features': features
-        }
-
-        # Debug print to see the result in the console
-        print(json.dumps(result, indent=2))
-
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": f"Erreur lors du traitement de la requête: {e}"}), 500
-
-if __name__ == '__main__':
-    app.run(debug=True)
+# Afficher les résultats
+print("Résultat transformation 2D:", mapping(result_2d))
+print("Résultat transformation 3D:", mapping(result_3d))
