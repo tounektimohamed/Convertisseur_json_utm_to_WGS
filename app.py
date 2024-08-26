@@ -6,24 +6,22 @@ from shapely.geometry import shape, mapping
 from shapely.ops import transform
 
 app = Flask(__name__)
-CORS(app)  # Permet les requêtes CORS
-
-# Fonction pour convertir les coordonnées de UTM à WGS84 avec un code EPSG spécifique
+CORS(app)
 
 def convert_utm_to_wgs84(geometry, epsg_code):
     try:
-        # Utiliser le code EPSG pour UTM
         proj_utm = pyproj.Proj(f"epsg:{epsg_code}")
         proj_wgs84 = pyproj.Proj(proj="latlong", datum="WGS84")
-
         transformer = pyproj.Transformer.from_proj(proj_utm, proj_wgs84, always_xy=True)
 
-        project = lambda x, y: transformer.transform(x, y)
+        def project(x, y, z=None):
+            if z is None:
+                return transformer.transform(x, y)
+            else:
+                lon, lat = transformer.transform(x, y)
+                return lon, lat, z
+
         transformed_geom = transform(project, shape(geometry))
-        
-        # Débogage : imprime les coordonnées avant et après transformation
-        print("Avant transformation:", shape(geometry))
-        print("Après transformation:", transformed_geom)
 
         return transformed_geom
     except Exception as e:
@@ -58,9 +56,6 @@ def convert():
             'type': 'FeatureCollection',
             'features': features
         }
-
-        # Debug print to see the result in the console
-        print(json.dumps(result, indent=2))
 
         return jsonify(result)
     except Exception as e:
