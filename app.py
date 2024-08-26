@@ -14,7 +14,7 @@ CORS(app)  # Permet les requêtes CORS
 
 # Fonction pour supprimer la composante Z des coordonnées 3D
 def remove_z_from_geometry(geometry):
-    logging.debug("Supprimer la composante Z de la géométrie: %s", geometry)
+    logging.debug("Suppression de la composante Z de la géométrie: %s", geometry)
     geom_type = geometry['type']
     coords = geometry['coordinates']
     
@@ -55,19 +55,10 @@ def convert_utm_to_wgs84(geometry, epsg_code):
         proj_utm = pyproj.Proj(f"epsg:{epsg_code}")
         proj_wgs84 = pyproj.Proj(proj="latlong", datum="WGS84")
         
-        transformer = pyproj.Transformer.from_proj(proj_utm, proj_wgs84, always_xy=True)
-        
-        # Fonction lambda pour transformer les coordonnées
-        def project(x, y):
-            return transformer.transform(x, y)
-        
-        # Fonction lambda adaptée pour transformer les coordonnées avec Shapely
-        def transform_func(geom):
-            x, y = geom
-            return project(x, y)
-        
         # Transformer la géométrie
-        transformed_geom = transform(transform_func, shape(geometry_2d))
+        transformer = pyproj.Transformer.from_proj(proj_utm, proj_wgs84, always_xy=True)
+        transformed_geom = transform(transformer.transform, shape(geometry_2d))
+
         logging.debug("Avant transformation: %s", shape(geometry_2d))
         logging.debug("Après transformation: %s", transformed_geom)
 
@@ -111,7 +102,6 @@ def convert():
             'features': features
         }
 
-        # Debug print to see the result in the console
         logging.debug("Résultat final de la conversion: %s", json.dumps(result, indent=2))
 
         return jsonify(result)
