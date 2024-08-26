@@ -8,6 +8,8 @@ from shapely.ops import transform
 app = Flask(__name__)
 CORS(app)  # Permet les requêtes CORS
 
+# Fonction pour convertir les coordonnées de UTM à WGS84 avec un code EPSG spécifique
+
 def convert_utm_to_wgs84(geometry, epsg_code):
     try:
         # Utiliser le code EPSG pour UTM
@@ -16,28 +18,9 @@ def convert_utm_to_wgs84(geometry, epsg_code):
 
         transformer = pyproj.Transformer.from_proj(proj_utm, proj_wgs84, always_xy=True)
 
-        def project(x, y):
-            return transformer.transform(x, y)
-
-        # Vérifier si la géométrie a une dimension Z
-        if geometry.get('coordinates') and len(geometry['coordinates'][0]) > 2:
-            # Suppression de la dimension Z
-            def remove_z(geom):
-                if geom['type'] == 'Point':
-                    return {'type': 'Point', 'coordinates': geom['coordinates'][:2]}
-                elif geom['type'] == 'LineString':
-                    return {'type': 'LineString', 'coordinates': [p[:2] for p in geom['coordinates']]}
-                elif geom['type'] == 'Polygon':
-                    return {'type': 'Polygon', 'coordinates': [[p[:2] for p in ring] for ring in geom['coordinates']]}
-                elif geom['type'] == 'MultiPolygon':
-                    return {'type': 'MultiPolygon', 'coordinates': [[p[:2] for p in ring] for ring in poly] for poly in geom['coordinates']}
-                # Ajouter d'autres types de géométrie si nécessaire
-                return geom
-
-            geometry = remove_z(geometry)
-
+        project = lambda x, y: transformer.transform(x, y)
         transformed_geom = transform(project, shape(geometry))
-
+        
         # Débogage : imprime les coordonnées avant et après transformation
         print("Avant transformation:", shape(geometry))
         print("Après transformation:", transformed_geom)
