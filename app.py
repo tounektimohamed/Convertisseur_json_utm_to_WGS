@@ -1,3 +1,4 @@
+import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pyproj
@@ -5,40 +6,50 @@ import json
 from shapely.geometry import shape, mapping
 from shapely.ops import transform
 
+# Configuration du logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
 app = Flask(__name__)
 CORS(app)  # Permet les requêtes CORS
 
 # Fonction pour supprimer la composante Z des coordonnées 3D
 def remove_z_from_geometry(geometry):
-    print("Supprimer la composante Z de la géométrie:", geometry)  # Débogage
-    if geometry['type'] in ['Point', 'LineString', 'Polygon']:
-        coords = geometry['coordinates']
-        
-        # Traiter les coordonnées en fonction du type de géométrie
-        if geometry['type'] == 'Point':
-            return {
-                'type': 'Point',
-                'coordinates': coords[:2]  # Conserver uniquement x et y
-            }
-        elif geometry['type'] == 'LineString':
-            return {
-                'type': 'LineString',
-                'coordinates': [coord[:2] for coord in coords]  # Conserver uniquement x et y
-            }
-        elif geometry['type'] == 'Polygon':
-            return {
-                'type': 'Polygon',
-                'coordinates': [[coord[:2] for coord in ring] for ring in coords]  # Conserver uniquement x et y
-            }
-    return geometry
+    logging.debug("Supprimer la composante Z de la géométrie: %s", geometry)
+    geom_type = geometry['type']
+    coords = geometry['coordinates']
+    
+    if geom_type == 'Point':
+        return {
+            'type': 'Point',
+            'coordinates': coords[:2]  # Conserver uniquement x et y
+        }
+    elif geom_type == 'LineString':
+        return {
+            'type': 'LineString',
+            'coordinates': [coord[:2] for coord in coords]  # Conserver uniquement x et y
+        }
+    elif geom_type == 'Polygon':
+        return {
+            'type': 'Polygon',
+            'coordinates': [[coord[:2] for coord in ring] for ring in coords]  # Conserver uniquement x et y
+        }
+    elif geom_type == 'MultiPolygon':
+        return {
+            'type': 'MultiPolygon',
+            'coordinates': [[
+                [coord[:2] for coord in ring] for ring in polygon
+            ] for polygon in coords]  # Conserver uniquement x et y
+        }
+    else:
+        raise Exception(f"Type de géométrie non pris en charge: {geom_type}")
 
 # Fonction pour convertir les coordonnées de UTM à WGS84 avec un code EPSG spécifique
 def convert_utm_to_wgs84(geometry, epsg_code):
-    print(f"Conversion des coordonnées UTM à WGS84 avec EPSG {epsg_code}")  # Débogage
+    logging.debug("Conversion des coordonnées UTM à WGS84 avec EPSG %d", epsg_code)
     try:
         # Supprimer la composante Z si elle existe
         geometry_2d = remove_z_from_geometry(geometry)
-        print("Géométrie 2D après suppression de Z:", geometry_2d)  # Débogage
+        logging.debug("Géométrie 2D après suppression de Z: %s", geometry_2d)
 
         # Utiliser le code EPSG pour UTM
         proj_utm = pyproj.Proj(f"epsg:{epsg_code}")
@@ -49,20 +60,23 @@ def convert_utm_to_wgs84(geometry, epsg_code):
         def project(x, y):
             return transformer.transform(x, y)
         
+        # Transformer la géométrie
         transformed_geom = transform(lambda g: transform(project, g), shape(geometry_2d))
-        print("Avant transformation:", shape(geometry_2d))  # Débogage
-        print("Après transformation:", transformed_geom)  # Débogage
+        logging.debug("Avant transformation: %s", shape(geometry_2d))
+        logging.debug("Après transformation: %s", transformed_geom)
 
         return transformed_geom
     except Exception as e:
-        print(f"Erreur de conversion UTM à WGS84: {e}")  # Débogage
+        logging.error("Erreur de conversion UTM à WGS84: %s", e)
         raise Exception(f"Erreur de conversion UTM à WGS84: {e}")
 
 @app.route('/convert', methods=['POST'])
 def convert():
-    print("Requête de conversion reçue")  # Débogage
+    logging.debug("Requête de conversion reçue")
     try:
         data = request.get_json()
+        logging.debug("Données reçues: %s", data)
+
         epsg_code = data.get('epsg_code')
         geojson = data.get('geojson')
 
@@ -75,7 +89,7 @@ def convert():
         features = []
         for feature in geojson.get('features', []):
             try:
-                print(f"Traitement de la fonctionnalité: {feature}")  # Débogage
+                logging.debug("Traitement de la fonctionnalité: %s", feature)
                 geom = convert_utm_to_wgs84(feature['geometry'], epsg_code)
                 features.append({
                     'type': 'Feature',
@@ -83,7 +97,7 @@ def convert():
                     'properties': feature['properties']
                 })
             except Exception as e:
-                print(f"Erreur lors de la conversion de la fonctionnalité: {e}")  # Débogage
+                logging.error("Erreur lors de la conversion de la fonctionnalité: %s", e)
                 return jsonify({"error": f"Erreur lors de la conversion de la fonctionnalité: {e}"}), 400
 
         result = {
@@ -92,11 +106,11 @@ def convert():
         }
 
         # Debug print to see the result in the console
-        print("Résultat final de la conversion:", json.dumps(result, indent=2))  # Débogage
+        logging.debug("Résultat final de la conversion: %s", json.dumps(result, indent=2))
 
         return jsonify(result)
     except Exception as e:
-        print(f"Erreur lors du traitement de la requête: {e}")  # Débogage
+        logging.error("Erreur lors du traitement de la requête: %s", e)
         return jsonify({"error": f"Erreur lors du traitement de la requête: {e}"}), 500
 
 if __name__ == '__main__':
