@@ -61,7 +61,7 @@ def convert_utm_to_wgs84(geometry, epsg_code):
             return transformer.transform(x, y)
         
         # Transformer la géométrie
-        transformed_geom = transform(lambda g: transform(project, g), shape(geometry_2d))
+        transformed_geom = transform(lambda g: project(*g), shape(geometry_2d))
         logging.debug("Avant transformation: %s", shape(geometry_2d))
         logging.debug("Après transformation: %s", transformed_geom)
 
