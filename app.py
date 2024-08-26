@@ -57,11 +57,17 @@ def convert_utm_to_wgs84(geometry, epsg_code):
         
         transformer = pyproj.Transformer.from_proj(proj_utm, proj_wgs84, always_xy=True)
         
+        # Fonction lambda pour transformer les coordonnées
         def project(x, y):
             return transformer.transform(x, y)
         
+        # Fonction lambda adaptée pour transformer les coordonnées avec Shapely
+        def transform_func(geom):
+            x, y = geom
+            return project(x, y)
+        
         # Transformer la géométrie
-        transformed_geom = transform(lambda g: project(*g), shape(geometry_2d))
+        transformed_geom = transform(transform_func, shape(geometry_2d))
         logging.debug("Avant transformation: %s", shape(geometry_2d))
         logging.debug("Après transformation: %s", transformed_geom)
 
