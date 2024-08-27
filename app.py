@@ -4,9 +4,14 @@ import pyproj
 import json
 from shapely.geometry import shape, mapping
 from shapely.ops import transform
+import logging
 
 app = Flask(__name__)
 CORS(app)  # Permet les requêtes CORS
+
+# Configurer le logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Fonction pour convertir les coordonnées de UTM à WGS84 avec un code EPSG spécifique
 def convert_utm_to_wgs84(geometry, epsg_code):
@@ -20,13 +25,14 @@ def convert_utm_to_wgs84(geometry, epsg_code):
         project = lambda x, y: transformer.transform(x, y)
         transformed_geom = transform(project, shape(geometry))
         
-        # Débogage : imprime les coordonnées avant et après transformation
-        print("Avant transformation:", shape(geometry))
-        print("Après transformation:", transformed_geom)
+        # Logging : imprime les coordonnées avant et après transformation
+        logger.debug(f"Avant transformation: {shape(geometry)}")
+        logger.debug(f"Après transformation: {transformed_geom}")
 
         return transformed_geom
     except Exception as e:
-        raise Exception(f"Erreur de conversion UTM à WGS84: {e}")
+        logger.error(f"Erreur de conversion UTM à WGS84: {e}")
+        raise
 
 # Fonction pour traiter les données en morceaux
 def process_features_in_chunks(features, epsg_code, chunk_size=100):
@@ -42,7 +48,8 @@ def process_features_in_chunks(features, epsg_code, chunk_size=100):
                     'properties': feature['properties']
                 })
             except Exception as e:
-                raise Exception(f"Erreur lors de la conversion de la fonctionnalité: {e}")
+                logger.error(f"Erreur lors de la conversion de la fonctionnalité: {e}")
+                raise
     return results
 
 @app.route('/convert', methods=['POST'])
@@ -53,13 +60,16 @@ def convert():
         geojson = data.get('geojson')
 
         if not epsg_code or not geojson:
+            logger.warning("Données manquantes: epsg_code et geojson sont requis.")
             return jsonify({"error": "Données manquantes: epsg_code et geojson sont requis."}), 400
 
         if not isinstance(epsg_code, int):
+            logger.warning("epsg_code doit être un entier.")
             return jsonify({"error": "epsg_code doit être un entier."}), 400
 
         features = geojson.get('features', [])
         if not features:
+            logger.warning("Aucune fonctionnalité trouvée dans le GeoJSON.")
             return jsonify({"error": "Aucune fonctionnalité trouvée dans le GeoJSON."}), 400
 
         # Traiter les fonctionnalités en morceaux
@@ -70,11 +80,12 @@ def convert():
             'features': processed_features
         }
 
-        # Debug print to see the result in the console
-        print(json.dumps(result, indent=2))
+        # Logging : imprime le résultat dans la console
+        logger.debug(f"Résultat: {json.dumps(result, indent=2)}")
 
         return jsonify(result)
     except Exception as e:
+        logger.error(f"Erreur lors du traitement de la requête: {e}")
         return jsonify({"error": f"Erreur lors du traitement de la requête: {e}"}), 500
 
 # Nouvelle fonction pour supprimer la composante Z des coordonnées
@@ -110,6 +121,7 @@ def remove_z():
         geojson = data.get('geojson')
 
         if not geojson:
+            logger.warning("Données manquantes: geojson est requis.")
             return jsonify({"error": "Données manquantes: geojson est requis."}), 400
 
         for feature in geojson.get('features', []):
@@ -117,6 +129,7 @@ def remove_z():
 
         return jsonify(geojson)
     except Exception as e:
+        logger.error(f"Erreur lors du traitement de la requête: {e}")
         return jsonify({"error": f"Erreur lors du traitement de la requête: {e}"}), 500
 
 if __name__ == '__main__':
