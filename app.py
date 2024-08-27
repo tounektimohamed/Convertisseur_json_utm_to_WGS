@@ -28,6 +28,23 @@ def convert_utm_to_wgs84(geometry, epsg_code):
     except Exception as e:
         raise Exception(f"Erreur de conversion UTM à WGS84: {e}")
 
+# Fonction pour traiter les données en morceaux
+def process_features_in_chunks(features, epsg_code, chunk_size=100):
+    results = []
+    for i in range(0, len(features), chunk_size):
+        chunk = features[i:i + chunk_size]
+        for feature in chunk:
+            try:
+                geom = convert_utm_to_wgs84(feature['geometry'], epsg_code)
+                results.append({
+                    'type': 'Feature',
+                    'geometry': mapping(geom),
+                    'properties': feature['properties']
+                })
+            except Exception as e:
+                raise Exception(f"Erreur lors de la conversion de la fonctionnalité: {e}")
+    return results
+
 @app.route('/convert', methods=['POST'])
 def convert():
     try:
@@ -41,21 +58,16 @@ def convert():
         if not isinstance(epsg_code, int):
             return jsonify({"error": "epsg_code doit être un entier."}), 400
 
-        features = []
-        for feature in geojson.get('features', []):
-            try:
-                geom = convert_utm_to_wgs84(feature['geometry'], epsg_code)
-                features.append({
-                    'type': 'Feature',
-                    'geometry': mapping(geom),
-                    'properties': feature['properties']
-                })
-            except Exception as e:
-                return jsonify({"error": f"Erreur lors de la conversion de la fonctionnalité: {e}"}), 400
+        features = geojson.get('features', [])
+        if not features:
+            return jsonify({"error": "Aucune fonctionnalité trouvée dans le GeoJSON."}), 400
+
+        # Traiter les fonctionnalités en morceaux
+        processed_features = process_features_in_chunks(features, epsg_code)
 
         result = {
             'type': 'FeatureCollection',
-            'features': features
+            'features': processed_features
         }
 
         # Debug print to see the result in the console
