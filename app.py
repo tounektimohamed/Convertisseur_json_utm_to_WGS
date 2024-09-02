@@ -97,13 +97,16 @@ def remove_z_from_coordinates(coords):
 
 # Nouvelle fonction pour supprimer la composante Z de la géométrie GeoJSON
 def remove_z_from_geometry(geometry):
-    geom_type = geometry['type']
+   geom_type = geometry['type']
     coords = geometry['coordinates']
 
     if geom_type == 'Point':
         geometry['coordinates'] = remove_z_from_coordinates(coords)
-    elif geom_type == 'LineString':
-        geometry['coordinates'] = remove_z_from_coordinates(coords)
+    elif geom_type == 'LineString' or geom_type == 'MultiLineString':
+        if geom_type == 'MultiLineString':
+            geometry['coordinates'] = [remove_z_from_coordinates(line) for line in coords]
+        else:
+            geometry['coordinates'] = remove_z_from_coordinates(coords)
     elif geom_type == 'Polygon':
         geometry['coordinates'] = [remove_z_from_coordinates(ring) for ring in coords]
     elif geom_type == 'MultiPolygon':
